@@ -150,11 +150,11 @@ void draw(GameState state){
   do{
 
     if (state == initial){
-      oled.drawXBMP(0, 0, 128, 64, santa_ho_image);
+      oled.drawXBMP(0, 0, 128, 64, santa_image_bits);
     }
     else if ( state == keep_shaking) {
       //oled.drawStr(20, 40, "Keep shaking");
-      oled.drawXBMP(0, 0, shake_width, shake_height, shake_bits);
+      oled.drawXBMP(0, 0, 128, 64, shake_image_bits);
     }
   } while (oled.nextPage());
 }
