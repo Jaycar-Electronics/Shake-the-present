@@ -1,64 +1,61 @@
-#define DEBUGGING_INFO
-
+// Libraries
 #include <Arduino.h>
 #include <SPI.h>
 #include <U8g2lib.h>
-#include <Arduino.h>
 #include <Wire.h>
 #include <SparkFun_MMA8452Q.h>
-#include "definitions.h"
-#include "santa_ho_image.h"
-#include "shake.h"
+
+//Strings to show on the screen
 #include "present_strings.h"
-/**************
-* Constants
+
+// Images generated with GIMP.
+#include "santa_image.h"
+#include "shake_image.h"
+// Have a look at the readme file for how to build the bitmap images.
+
+
+/*************** Constants *****************************************
 * and other defines
-*
-*
-*
 */
 
+const uint8_t mag_history_max = 16; //window of averaging function
+const short shake_threshold = 1400; //the threshold that the shake must overcome
 
-const uint8_t mag_history_max = 16;
-const short shake_threshold = 1400;
+void (*resetSelf)(void) = 0; //shortcut to reset the arduino.
 
-
-void (*resetSelf)(void) = 0;
-
-enum GameState {
+enum GameState {    //internal state tracking. (State Machine)
     initial,
     keep_shaking,
     reveal
 };
 
-int measureShake();
-short getAverageMagnitude(int);
-void draw(GameState state);
-/**************
-* Global vars
-*
-*
+//function definitions:
+int measureShake();           //get the shake magnitured
+short getAverageMagnitude(int); //get average shake, without recording new values
+void draw(GameState state);   // draw images on the screen.
+
+
+
+
+/*************** Global vars ******************************************
 */
 
-uint8_t shake_counter = 0; //count how many times we've shaken it
-uint8_t present_rundown = 0;        // number of presents to loop through
-short magnitude_history[mag_history_max] = {0};
-uint8_t mag_idx = 0;
-
-bool tripped = false; //have we reached high accel?
-bool dirty = true;  //do we need to re-draw the screen?
-
-uint8_t lastShake = 0; // for debugging;
-
-GameState state = initial;
+uint8_t shake_counter = 0;    //count how many times we've shaken it
+short magnitude_history[mag_history_max] = {0}; //the average window function as above
+uint8_t mag_idx = 0;          //internal counter to spots in the mag_history
 
 
-/**************
-* Setup and Loop
+bool tripped = false;         //have we reached high accel?
+bool dirty = true;            //do we need to re-draw the screen?
+
+uint8_t lastShake = 0;        //for debugging;
+
+GameState state = initial;    //start at the initial state
+
+
+/*************** Setup and Loop ********************************************
 * Main routines
-*
 */
-
 
 void setup()
 {
@@ -120,85 +117,20 @@ void loop()
 }
 
 
-/**************
-* Private functions for
+/*************** Private functions *******************************************
 * Accelerometer and OLED
-*
 */
 
-void draw_reveal(){
-  U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI oled(
-      U8G2_R0, //180 rotation
-      9,       //cs
-      10,      //dc
-      12       //reset
-  );
-
-  oled.begin();
-  oled.setFont(u8g2_font_t0_11_me);
-  oled.setFontDirection(0);
-
-  //todo random
-
-  char buffer[20];
-  uint8_t x = random(0, presents_count);
-  for(uint8_t i = 0; i < 20; i++){
-
-
-    uint8_t val = (x+i) % presents_count;
-
-    char * ptr = (char*) pgm_read_word(
-      &(presents [val])
-      );
-
-    strcpy_P(buffer, ptr);
-
-
-    oled.firstPage();
-    do{
-        oled.drawStr(30, 10, "You will get:");
-
-        uint8_t x = 0;
-        uint8_t y = 33;
-        oled.drawHLine(0, 17, 128);
-        oled.drawHLine(0, 20, 128);
-        for(uint8_t c = 0; buffer[c] != 0; c++){
-          if(buffer[c]=='\n'){
-            x = 5; y = 45;
-          }
-          oled.setCursor(x,y);
-          oled.print(buffer[c]);
-          x+=6;
-        }
-        oled.drawHLine(0, 50, 128);
-        oled.drawHLine(0, 52, 128);
-        //oled.print(buffer);
-    } while (oled.nextPage());
-    float frac = i / 6;
-
-    delay(
-      100 * pow(frac, 2)
-    );
-
-  }
-
-
-  //at the end of the function,
-  // oled is removed and memory is restored
-  delay(10000L);
-  resetSelf();
-}
-
-
-/*
-U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI oled(
-    U8G2_R0, //180 rotation
-    9,       //cs
-    10,      //dc
-    12       //reset
-);*/
-
 void draw(GameState state){
+  /* We use this function
+  * To create the OLED management object
+  * and draw on the screen.
+  * This is so when the function ends, the oled
+  * object will be deleted and the memory will be freed.
+  * This greatly helps with crashing
+  * As this program is very close to maximum practical use on the arduino
+  * before crashing.
+  */
 
   U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI oled(
       U8G2_R0, //180 rotation
@@ -208,13 +140,15 @@ void draw(GameState state){
   );
 
   oled.begin();
-  oled.setFont(u8g2_font_t0_15b_mf);
-  oled.setFontDirection(0);
+  // keep in mind, we're not actually using text here
+  // so we don't have to load the fonts.
 
-  //todo random
-
+  //oled.setFont(u8g2_font_t0_15b_mf);
+  //oled.setFontDirection(0);
   oled.firstPage();
+
   do{
+
     if (state == initial){
       oled.drawXBMP(0, 0, 128, 64, santa_ho_image);
     }
@@ -222,21 +156,87 @@ void draw(GameState state){
       //oled.drawStr(20, 40, "Keep shaking");
       oled.drawXBMP(0, 0, shake_width, shake_height, shake_bits);
     }
-    else {
-      oled.drawStr(0, 10, "You won");
-      //draw_reveal();
-    }
   } while (oled.nextPage());
-
-  //at the end of the function,
-  // oled is removed and memory is restored
 }
 
 
+void draw_reveal(){
+  /* This function is very similar to the above
+  *  Except with the random "dice roll" effect
+  *  to show what the user is getting.
+
+  * This *could* be refactored nicer,
+  * But as long as it works, it works.
+  */
+
+  U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI oled(
+      U8G2_R0, //180 rotation
+      9,       //cs
+      10,      //dc
+      12       //reset
+  );
+
+  oled.begin();
+  oled.setFont(u8g2_font_t0_11_me); //now we are using fnot
+  oled.setFontDirection(0);
+
+  char buffer[20];
+  uint8_t x = random(0, presents_count); //randomly pick from the entire range
+
+  for(uint8_t i = 0; i < 20; i++){
+
+    uint8_t val = (x+i) % presents_count; //scroll though
+
+    //get a pointer to the string at this position
+    char * ptr = (char*) pgm_read_word( &(presents [val]));
+
+    //copy it into the buffer
+    strcpy_P(buffer, ptr);
+
+
+    oled.firstPage();
+    do{
+        oled.drawStr(30, 10, "You will get:");
+        uint8_t x = 0;
+        uint8_t y = 33;
+        oled.drawHLine(0, 17, 128);
+        oled.drawHLine(0, 20, 128);
+
+        for(uint8_t c = 0; buffer[c] != 0; c++){
+          // we want to draw line by line so that we can handle newlines
+          // easier.
+
+          if(buffer[c]=='\n'){
+            x = 5; y = 45;
+          }
+
+          oled.setCursor(x,y);
+          oled.print(buffer[c]);
+
+          x+=6;
+        }
+        oled.drawHLine(0, 50, 128);
+        oled.drawHLine(0, 52, 128);
+    } while (oled.nextPage());
+
+
+    //a semi nice exponential function to slow down dice roll.
+    //given it's a micro, don't ask for too much.
+    float frac = i / 6;
+    delay( 100 * pow(frac, 2));
+  }
+
+
+  //we finally "rest" on a position for 10 seconds, to show the user
+  // then reset.
+  delay(10000L);
+  resetSelf();
+}
 
 
 short getAverageMagnitude(int mag)
 {
+  //general rolling window-esqe type of thing.
   magnitude_history[mag_idx++] = mag;
   mag_idx %= mag_history_max;
   short sum = 0;
