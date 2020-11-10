@@ -1,0 +1,70 @@
+#ifndef _CODE_H__
+#define _CODE_H__
+
+#include <Wire.h>
+#include <SparkFun_MMA8452Q.h>
+#include <U8g2lib.h>
+#include <SPI.h>
+
+//#include "shake.h"
+
+
+void draw_santa()
+{
+}
+void draw_shake()
+{
+  oled.drawStr(0, 10, "Keep shaking");
+  //oled.drawXBMP(0, 0, shake_width, shake_height, shake_bits);
+}
+void draw_reveal(int indx)
+{
+  oled.drawStr(0, 10, "You are getting:");
+  //oled.drawStr(0, 30, (char*)pgm_read_word(&(revelations[indx])));
+  Serial.println((char *)pgm_read_word(&(revelations[indx])));
+}
+
+short measureShake()
+{
+  MMA8452Q accel;
+  if (!accel.begin())
+  {
+    Serial.println(F("Unable to start the accelerometer, check connections"));
+    Serial.println(F("and restart"));
+    while (1)
+      ;
+  }
+  //wait for accelerometer data to come in
+  // we won't we have
+  while (!accel.available())
+    ;
+
+  short v = getAverageMagnitude(sqrt(
+      pow(accel.getX(), 2) +
+      pow(accel.getY(), 2) +
+      pow(accel.getZ(), 2)));
+  return v;
+}
+void draw_screen()
+{
+  Serial.println(F("Drawing Screen!"));
+  oled.firstPage();
+  do
+  {
+    if (current_state == start)
+    {
+      draw_santa();
+    }
+    else if (current_state == keep_shaking)
+    {
+      draw_shake();
+    }
+    else if (current_state == reveal)
+    {
+      draw_reveal(random(0, 5)); //todo
+    }
+  } while (oled.nextPage());
+  Serial.println(F("Finished Screen!"));
+}
+
+#endif
