@@ -295,7 +295,7 @@ int measureShake()
       pow(accel.getY(), 2) +
       pow(accel.getZ(), 2));
 
-  short v = getAverageMagnitude(raw_mag)
+  short v = getAverageMagnitude(raw_mag);
 
       return v;
 
