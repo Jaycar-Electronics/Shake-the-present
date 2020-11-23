@@ -19,7 +19,7 @@ Shake the box to find what you get in this magic 8-ball styled christmas gift ga
 
 ### You might also want
 
-- Some sort of "project box" to mount it all in so you can dress it up like a present. We do have a [range of enclosures](https://www.jaycar.com.au/search?text=enclosures) available and for our purposes we used the box from the [Duinotech Starter Kit](XC3902) (- _only $40 so it's a good buy for christmas if you are stuck for ideas anyway_)
+- Some sort of "project box" to mount it all in so you can dress it up like a present. We do have a [range of enclosures](https://www.jaycar.com.au/search?text=enclosures) available and for our Purposes we used the box from the [Duinotech Starter Kit](XC3902) (- _only $40 so it's a good buy for christmas if you are stuck for ideas anyway_)
 
 ## How to build
 <div id='instructions'>
